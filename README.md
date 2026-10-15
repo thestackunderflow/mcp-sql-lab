@@ -55,8 +55,21 @@ audit needs use an audit extension such as pgAudit, or your managed database's a
 12. From the catalogs: `ai_reader`'s attributes, search_path and memberships are as listed; it can execute no
     SECURITY DEFINER function; PUBLIC has no CREATE on schema public and no TEMPORARY or CONNECT on `reporting`.
 
-Phase 2 (test 9, and the MCP half of test 10): the same requests through MCP servers over stdio. Postgres MCP Pro in
-restricted mode rejects DELETE and COMMIT before the database; Toolbox passes DELETE to the database, which refuses.
+## The tests (phase 2: through real MCP servers, `tests/mcp/`)
+
+The same requests sent by an MCP client over stdio, as Claude Code or Claude Desktop would, to two servers that both log in
+as `ai_reader`. What the lab found (14 Oct 2026, exact texts in `tests/out/mcp.json`):
+
+| Request | Postgres MCP Pro 0.3.0, restricted | Google MCP Toolbox 1.14.0, prebuilt postgres |
+|---|---|---|
+| SELECT | answered | answered |
+| `DELETE` | rejected by the server ("Error validating query"); never reaches PostgreSQL (not in the log) | reaches PostgreSQL as `ai_reader`; refused: "cannot execute DELETE in a read-only transaction" (the role's default) |
+| `COMMIT; BEGIN READ WRITE; DELETE` | rejected by the server; not in the log | refused: prepared statements can't hold several commands |
+| `SET default_transaction_read_only = off`, then `DELETE`, same session | (not tested: SET is rejected in restricted mode) | the SET is accepted silently; the DELETE then gets **"permission denied for table address_checks"**: the setting fell, the privilege held |
+| Tool annotations | none on any tool | `execute_sql` marked destructive (readOnlyHint false) |
+
+Worth knowing: Postgres MCP Pro returns its refusal as a normal result (`isError: false`, the text starts "Error:"), so a
+client that only checks the error flag would see success. In every case the row count is unchanged.
 
 Exact error texts and findings are written to `tests/out/` by the tests; the video quotes them from there, never by
 hand.
@@ -67,6 +80,7 @@ Everything runs in Docker:
 
 ```bash
 docker compose up -d db
-docker compose run --rm tests
+docker compose run --rm tests        # phase 1: the database
+docker compose run --rm tests-mcp    # phase 2: through the MCP servers
 docker compose down -v      # start again from scratch
 ```

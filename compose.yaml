@@ -31,7 +31,20 @@ services:
     volumes:
       - .:/lab
     working_dir: /lab
-    command: ["pytest", "-q", "tests"]
+    command: ["pytest", "-q", "tests/test_lab.py"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  tests-mcp:
+    build: ./tests/mcp
+    environment:
+      PGHOST: db
+      POSTGRES_PASSWORD: lab
+    volumes:
+      - .:/lab
+    working_dir: /lab
+    command: ["pytest", "-q", "tests/mcp"]
     depends_on:
       db:
         condition: service_healthy
