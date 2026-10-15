@@ -160,3 +160,10 @@ def test_toolbox_model_switches_read_only_off_then_the_privilege_refuses():
     FOUND["toolbox_delete_after_set"] = delete_answer
     assert refused(delete_answer)
     assert count_checks() == before
+
+
+def test_pro_restricted_rejects_a_lone_commit():
+    """Pro's restricted mode parses the SQL against an allowlist; a transaction command on its own is rejected too."""
+    _, answer = run(PRO, "COMMIT")
+    FOUND["pro_lone_commit"] = answer
+    assert refused(answer)

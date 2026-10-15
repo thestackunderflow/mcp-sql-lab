@@ -63,7 +63,7 @@ as `ai_reader`. What the lab found (14 Oct 2026, exact texts in `tests/out/mcp.j
 | Request | Postgres MCP Pro 0.3.0, restricted | Google MCP Toolbox 1.14.0, prebuilt postgres |
 |---|---|---|
 | SELECT | answered | answered |
-| `DELETE` | rejected by the server ("Error validating query"); never reaches PostgreSQL (not in the log) | reaches PostgreSQL as `ai_reader`; refused: "cannot execute DELETE in a read-only transaction" (the role's default) |
+| `DELETE` | rejected by the server ("Error validating query"; a lone COMMIT too); never reaches PostgreSQL (not in the log) | reaches PostgreSQL as `ai_reader`; refused: "cannot execute DELETE in a read-only transaction" (the role's default) |
 | `COMMIT; BEGIN READ WRITE; DELETE` | rejected by the server; not in the log | refused: prepared statements can't hold several commands |
 | `SET default_transaction_read_only = off`, then `DELETE`, same session | (not tested: SET is rejected in restricted mode) | the SET is accepted silently; the DELETE then gets **"permission denied for table address_checks"**: the setting fell, the privilege held |
 | Tool annotations | none on any tool | `execute_sql` marked destructive (readOnlyHint false) |
