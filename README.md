@@ -54,6 +54,10 @@ audit needs use an audit extension such as pgAudit, or your managed database's a
     columns.
 12. From the catalogs: `ai_reader`'s attributes, search_path and memberships are as listed; it can execute no
     SECURITY DEFINER function; PUBLIC has no CREATE on schema public and no TEMPORARY or CONNECT on `reporting`.
+13. With read-only switched off (`SET default_transaction_read_only = off`), `naive_reader` deletes rows by calling
+    `purge_old_checks()`, a SECURITY DEFINER function that runs with its owner's rights: PUBLIC's default EXECUTE is a
+    way around a missing DELETE privilege. `ai_reader` gets "permission denied for function purge_old_checks" because
+    EXECUTE was revoked from PUBLIC (15 Oct 2026).
 
 ## The tests (phase 2: through real MCP servers, `tests/mcp/`)
 

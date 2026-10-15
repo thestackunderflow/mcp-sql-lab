@@ -188,3 +188,35 @@ def test_catalog_shows_the_hardening():
         assert c.execute("SELECT has_schema_privilege('public', 'public', 'CREATE')").fetchone()[0] is False
         assert c.execute("SELECT has_database_privilege('public', 'reporting', 'TEMPORARY')").fetchone()[0] is False
         assert c.execute("SELECT has_database_privilege('public', 'reporting', 'CONNECT')").fetchone()[0] is False
+
+
+# 13
+def test_definer_function_after_read_only_is_switched_off():
+    """The escape chapter's condition: with read-only switched off, a SECURITY DEFINER function that deletes is a way
+    around the missing DELETE privilege, unless EXECUTE was revoked from PUBLIC (the hardening)."""
+    old_row = ("INSERT INTO reporting.address_checks VALUES "
+               "(9001, 1, '1 Old Rd', 'X', timestamptz '2019-01-01') ON CONFLICT (id) DO NOTHING")
+    count_old = "SELECT count(*) FROM reporting.address_checks WHERE id = 9001"
+    for db in ("naive", "reporting"):
+        with connect({**ADMIN, "dbname": db}) as c:
+            c.execute(old_row)
+    # before: PUBLIC's default EXECUTE lets the plain SELECT-only role delete through the owner's function
+    with connect(NAIVE) as c:
+        c.execute("SET default_transaction_read_only = off")
+        c.execute("SELECT purge_old_checks()")
+    with connect({**ADMIN, "dbname": "naive"}) as c:
+        naive_left = c.execute(count_old).fetchone()[0]
+    FINDINGS["13_naive_purge"] = "deleted" if naive_left == 0 else "not deleted"
+    assert naive_left == 0, "the naive role should delete through the SECURITY DEFINER function"
+    # after: the hardened login can switch read-only off, but can't run the function
+    with connect(AI) as c:
+        c.execute("SET default_transaction_read_only = off")
+        try:
+            c.execute("SELECT purge_old_checks()")
+            err = None
+        except psycopg.Error as e:
+            err = str(e).strip().splitlines()[0]
+    ERRORS["13_ai_purge"] = err
+    with connect({**ADMIN, "dbname": "reporting"}) as c:
+        assert c.execute(count_old).fetchone()[0] == 1, "the hardened login must not delete"
+    assert err and "permission denied for function purge_old_checks" in err

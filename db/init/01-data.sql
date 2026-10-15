@@ -78,6 +78,9 @@ CREATE TABLE reporting.support_tickets (id int PRIMARY KEY, customer_id int NOT 
 CREATE TABLE reporting.refresh_info    (refresh_started_at timestamptz);
 CREATE FUNCTION reporting.checks_per_customer(cid int) RETURNS bigint
   LANGUAGE sql STABLE AS $$ SELECT count(*) FROM reporting.address_checks WHERE customer_id = cid $$;
+CREATE FUNCTION reporting.purge_old_checks() RETURNS void
+  LANGUAGE sql SECURITY DEFINER SET search_path = reporting, pg_temp
+  AS $$ DELETE FROM reporting.address_checks WHERE checked_at < now() - interval '5 years' $$;
 
 -- the "before" picture: a plain SELECT-only login, PostgreSQL's defaults untouched
 \connect postgres
