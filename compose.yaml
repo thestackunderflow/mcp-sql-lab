@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:18.6
+    environment:
+      POSTGRES_PASSWORD: lab
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      # statement logging for the lab: shows what reached PostgreSQL (not an audit trail)
+      - -c
+      - log_statement=all
+      - -c
+      - "log_line_prefix=%m [%p] user=%u db=%d app=%a "
+      - -c
+      - logging_collector=on
+      - -c
+      - log_filename=postgresql.log
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres && psql -U postgres -d reporting -c 'select 1' -tA"]
+      interval: 2s
+      retries: 30
+
+  tests:
+    build: ./tests
+    environment:
+      PGHOST: db
+      POSTGRES_PASSWORD: lab
+    volumes:
+      - .:/lab
+    working_dir: /lab
+    command: ["pytest", "-q", "tests"]
+    depends_on:
+      db:
+        condition: service_healthy
