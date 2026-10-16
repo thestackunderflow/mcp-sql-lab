@@ -88,3 +88,7 @@ docker compose run --rm tests        # phase 1: the database
 docker compose run --rm tests-mcp    # phase 2: through the MCP servers
 docker compose down -v      # start again from scratch
 ```
+
+## Licence
+
+Apache License 2.0 (`LICENSE`). The passwords in `compose.yaml` and `db/init/` are lab-only; never reuse them.
